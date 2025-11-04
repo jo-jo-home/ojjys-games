@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Clever | Portal</title>
+  <link rel="icon" type="image/png" href="https://yt3.googleusercontent.com/ytc/AIdro_kQ0iaCvqQ2SvyGkd8wkHBh69utDPzwsb8ISlQUL-ayTQs=s900-c-k-c0x00ffffff-no-rj">
+  <style>
+    /* Reset & layout */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; width: 100%; overflow-x: hidden; }
+    body {
+      font-family: Inter, "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+      color: #e6e9f0;
+      background: radial-gradient(120% 100% at 0% 0%, #0b1e3d 0%, #030712 60%);
+      min-height: 100vh;
+      position: relative;
+    }
+
+    /* Background canvas (constellations) */
+    #bg-constellation {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      display: block;
+    }
+
+    /* Main content */
+    main {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      padding: 80px 16px 120px;
+      display: grid;
+      place-items: center;
+    }
+
+    .page-wrap {
+      width: 100%;
+      max-width: 1100px;
+      text-align: center;
+    }
+
+    .page-title {
+      font-weight: 900;
+      font-size: clamp(40px, 8vw, 88px);
+      line-height: 1.08;
+      background: linear-gradient(90deg, #6aa3ff, #a3d1ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: 0.5px;
+      margin-bottom: 22px;
+    }
+
+    .collage {
+      margin: 8px auto 0;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+      width: 100%;
+    }
+
+    /* Card frame around each image */
+    figure.card {
+      border-radius: 14px;
+      border: 1px solid rgba(140,200,255,.28);
+      background: rgba(10, 24, 52, 0.45);
+      box-shadow: 0 6px 20px rgba(40,120,255,.15);
+      overflow: hidden;
+    }
+
+    /* Fixed aspect ratio so all tiles are exactly the same size */
+    .img-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 4 / 3; /* uniform tile shape */
+      overflow: hidden;
+    }
+    .img-wrap img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover; /* crop to fill */
+      display: block;
+    }
+
+    figcaption {
+      font-size: 14px;
+      color: #cfe2ff;
+      padding: 10px 12px 12px;
+      border-top: 1px solid rgba(140,200,255,.18);
+    }
+
+    /* Footer (optional, matches vibe) */
+    footer {
+      font-size: .9em;
+      color: #7289da;
+      text-align: center;
+      opacity: .85;
+      position: fixed;
+      bottom: 16px;
+      left: 0; right: 0;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      #bg-constellation { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Constellation background -->
+  <canvas id="bg-constellation" aria-hidden="true"></canvas>
+
+  <main>
+    <div class="page-wrap">
+      <h1 class="page-title">how did u find this?</h1>
+
+      <section class="collage" aria-label="Image Collage">
+        <figure class="card">
+          <div class="img-wrap">
+            <img src="https://cdn.jsdelivr.net/gh/jo-jo-home/ojjysgamesimages@main/andrew.jpg" alt="andrew" loading="lazy">
+          </div>
+          <figcaption>andrew is such a happy guy, look at him! (other than me, you have this guy to thank for the website.)</figcaption>
+        </figure>
+
+        <figure class="card">
+          <div class="img-wrap">
+            <img src="https://cdn.jsdelivr.net/gh/jo-jo-home/ojjysgamesimages@main/gregoryfirebackground.jpg" alt="gregory" loading="lazy">
+          </div>
+          <figcaption>sigh, gregory gregory gregory... (also btw thats ysmael in the background)</figcaption>
+        </figure>
+      </section>
+    </div>
+  </main>
+
+  <footer>made with ❤️ by somebody oct 2025</footer>
+
+  <!-- Background script: mouse-connected constellations -->
+  <script>
+    (() => {
+      const canvas = document.getElementById('bg-constellation');
+      if (!canvas) return;
+
+      let ctx, dpr, w, h, particles = [], maxDist, lineDist, rafId = null;
+      const isMobile = () => /Mobi|Android/i.test(navigator.userAgent);
+      const mouse = { x: 0, y: 0, active: false };
+
+      function resize() {
+        dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+        w = canvas.width = Math.floor(window.innerWidth * dpr);
+        h = canvas.height = Math.floor(window.innerHeight * dpr);
+        canvas.style.width = window.innerWidth + 'px';
+        canvas.style.height = window.innerHeight + 'px';
+
+        const density = isMobile() ? 0.14 : 0.22;
+        const targetCount = Math.round((w * h) / (1000 * dpr * 1000) * density * 1200);
+        particles = new Array(Math.max(140, targetCount)).fill(0).map(spawn);
+        maxDist = (Math.min(w, h) / 12);
+        lineDist = maxDist * 1.2; /* your requested 1.2× */
+      }
+
+      function spawn() {
+        const speed = (Math.random() * 0.25 + 0.05) * (isMobile() ? 0.7 : 1);
+        const angle = Math.random() * Math.PI * 2;
+        return {
+          x: Math.random() * w,
+          y: Math.random() * h,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          r: (Math.random() * 1.2 + 0.8) * dpr,
+          twinkle: Math.random() * 1
+        };
+      }
+
+      function onMouseMove(e) {
+        const rect = canvas.getBoundingClientRect();
+        mouse.x = (e.clientX - rect.left) * dpr;
+        mouse.y = (e.clientY - rect.top) * dpr;
+        mouse.active = true;
+      }
+      function onMouseLeave() { mouse.active = false; }
+
+      function step() {
+        ctx.clearRect(0, 0, w, h);
+
+        // dots
+        for (const p of particles) {
+          p.x += p.vx; p.y += p.vy;
+          if (p.x < -50) p.x = w + 50;
+          if (p.x > w + 50) p.x = -50;
+          if (p.y < -50) p.y = h + 50;
+          if (p.y > h + 50) p.y = -50;
+
+          p.twinkle += 0.008;
+          const alpha = 0.5 + Math.sin(p.twinkle) * 0.25;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(200, 220, 255, ${0.55 * alpha})`;
+          ctx.fill();
+        }
+
+        // lines between particles
+        for (let i = 0; i < particles.length; i++) {
+          for (let j = i + 1; j < particles.length; j++) {
+            const a = particles[i], b = particles[j];
+            const dx = a.x - b.x, dy = a.y - b.y;
+            const d2 = dx*dx + dy*dy;
+            if (d2 < lineDist * lineDist) {
+              const d = Math.sqrt(d2);
+              const t = 1 - d / lineDist;
+              ctx.beginPath();
+              ctx.moveTo(a.x, a.y);
+              ctx.lineTo(b.x, b.y);
+              ctx.lineWidth = Math.max(0.5 * dpr, t * 1.2 * dpr);
+              ctx.strokeStyle = `rgba(140, 200, 255, ${0.12 + t * 0.22})`;
+              ctx.stroke();
+            }
+          }
+        }
+
+        // lines to mouse (brighter)
+        if (mouse.active) {
+          for (const p of particles) {
+            const dx = p.x - mouse.x;
+            const dy = p.y - mouse.y;
+            const d2 = dx*dx + dy*dy;
+            if (d2 < lineDist * lineDist) {
+              const d = Math.sqrt(d2);
+              const t = 1 - d / lineDist;
+              ctx.beginPath();
+              ctx.moveTo(p.x, p.y);
+              ctx.lineTo(mouse.x, mouse.y);
+              ctx.lineWidth = Math.max(0.6 * dpr, t * 1.5 * dpr);
+              ctx.strokeStyle = `rgba(235, 245, 255, ${0.35 + t * 0.45})`;
+              ctx.stroke();
+            }
+          }
+        }
+
+        rafId = requestAnimationFrame(step);
+      }
+
+      function start() {
+        ctx = canvas.getContext('2d', { alpha: true });
+        window.addEventListener('resize', resize);
+        window.addEventListener('mousemove', onMouseMove, { passive: true });
+        window.addEventListener('mouseleave', onMouseLeave);
+        resize();
+        rafId = requestAnimationFrame(step);
+      }
+      function stop() {
+        if (rafId) cancelAnimationFrame(rafId);
+        window.removeEventListener('resize', resize);
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('mouseleave', onMouseLeave);
+      }
+
+      start();
+      window.addEventListener('pagehide', stop);
+    })();
+  </script>
+</body>
+</html>
